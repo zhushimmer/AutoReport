@@ -1,5 +1,8 @@
-# AutoReport
-基于Multi-Agent的自动化数据分析系统
+<p align="center">
+  <img src="./assets/text-logo.png" width="600" alt="AutoReport">
+  <span>AutoReport - 基于Multi-Agent的自动化数据分析系统</span>
+</p>
+
 
 ## 项目介绍
 
