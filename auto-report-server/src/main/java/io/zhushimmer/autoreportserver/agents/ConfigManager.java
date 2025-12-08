@@ -10,8 +10,8 @@ public class ConfigManager {
     /**
      * 构造函数：指定配置文件路径
      */
-    public ConfigManager(String configFilePath) {
-        this.configFilePath = configFilePath;
+    public ConfigManager() {
+        this.configFilePath = "config.properties";
         this.properties = new Properties();
         loadConfig();
     }

@@ -1,0 +1,50 @@
+:root {
+  --td-chat-item-avatar-has-header-padding: 0;
+  --td-chat-input-background: #414149;
+  --td-chat-item-suggestion-background: #3f3f3f;
+  --td-chat-item-name-font: 28px !important;
+  --td-chat-font-size: 18px;
+  --td-text-color-placeholder: #cecece !important;
+  --td-chat-input-font-size: 18px;
+  --td-chat-item-primary-bg: #3f3f3f;
+  --td-bg-color-container: #2b2b31 !important;
+  --td-font-size-body-medium: 16px;
+}
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+html {
+  width: 100vw;
+  height: 100vh;
+  background-color: #2b2b31;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  line-height: 1.6;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

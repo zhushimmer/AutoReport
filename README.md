@@ -53,6 +53,23 @@ mvn clean package
 java -jar target/auto-report-server-0.0.1-SNAPSHOT.jar
 ```
 
+### 启动Web UI
+
+1. 进入UI目录
+```bash
+cd auto-report-ui
+```
+
+2. 安装依赖
+```bash
+pnpm install
+```
+
+3. 快速启动
+```bash
+pnpm dev
+```
+
 
 ## 许可协议
 本项目采用以下许可协议：[Apache 2.0 license](LICENSE)

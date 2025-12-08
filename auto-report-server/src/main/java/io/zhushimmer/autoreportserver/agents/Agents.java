@@ -49,13 +49,29 @@ public class Agents {
     /**
      * 创建一个 Analysis ReAct 智能体
      */
-    public ReActAgent getDatabaseAgentAsTool(ArrayList<Object> tools) {
+    public ReActAgent getAnalysisAgent(ArrayList<Object> tools) {
         Toolkit toolkit = createToolkit(tools);
         Memory memory = new InMemoryMemory();
 
         return ReActAgent.builder()
                 .name("数据分析专家")
                 .sysPrompt("你是一名数据分析专家，精通各种数据分析任务，可以熟练的使用Python进行数据分析。")
+                .model(model)                    // 用于推理的 LLM
+                .toolkit(toolkit)                // 智能体可用的工具
+                .memory(memory)                  // 对话历史
+                .build();
+    }
+
+    /**
+     * 创建一个 Report ReAct 智能体
+     */
+    public ReActAgent getReportAgent(ArrayList<Object> tools) {
+        Toolkit toolkit = createToolkit(tools);
+        Memory memory = new InMemoryMemory();
+
+        return ReActAgent.builder()
+                .name("报告专家")
+                .sysPrompt("你是一名专业报告撰写专家，能将数据分析结果整合成结构清晰的报告。")
                 .model(model)                    // 用于推理的 LLM
                 .toolkit(toolkit)                // 智能体可用的工具
                 .memory(memory)                  // 对话历史
