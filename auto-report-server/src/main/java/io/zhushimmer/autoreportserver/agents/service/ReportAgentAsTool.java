@@ -17,7 +17,7 @@ public class ReportAgentAsTool {
     }
 
     @Tool(description = "报告撰写专家，根据数据分析结果撰写分析报告。")
-    public String data_analysis(
+    public String dataAnalysis(
             @ToolParam(name = "result", description = "数据分析结果。") String result
             ) {
         Msg inputMsg = Msg.builder()

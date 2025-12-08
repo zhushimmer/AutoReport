@@ -17,7 +17,7 @@ public class AnalysisAgentAsTool {
     }
 
     @Tool(description = "数据分析专家，执行数据分析操作，并获取分析结果。")
-    public String data_analysis(
+    public String dataAnalysis(
             @ToolParam(name = "task", description = "数据分析任务描述。") String task,
             @ToolParam(name = "data", description = "需要分析的数据，json格式。") String data
             ) {

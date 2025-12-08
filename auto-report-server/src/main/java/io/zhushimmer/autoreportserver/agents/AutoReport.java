@@ -64,7 +64,6 @@ public class AutoReport {
                         .text(MessageFormat.format("请执行以下数据分析任务：<task>{0}</task>", taskContent))
                         .build())
                 .build();
-//        Msg response = managerAgent.call(inputMsg).block();
         return managerAgent.stream(inputMsg);
     }
 }
