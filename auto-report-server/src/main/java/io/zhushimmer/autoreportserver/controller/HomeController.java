@@ -6,15 +6,14 @@ import io.agentscope.core.agent.EventType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.zhushimmer.autoreportserver.agents.AutoReport;
 import io.zhushimmer.autoreportserver.agents.ConfigManager;
-import io.zhushimmer.autoreportserver.dto.AnalysisRequest;
-import io.zhushimmer.autoreportserver.dto.ConfigRequest;
-import io.zhushimmer.autoreportserver.dto.SseResult;
+import io.zhushimmer.autoreportserver.dto.*;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin("*")
 @Tag(name = "Api Endpoint", description = "This is `AutoReport` api endpoint")
 public class HomeController {
     @GetMapping("/")
@@ -22,8 +21,30 @@ public class HomeController {
         return "This is `AutoReport` api endpoint";
     }
 
+    @GetMapping("/config")
+    public ConfigRequest getConfig() {
+        ConfigManager configManager = new ConfigManager();
+        ConfigRequest configRequest = new ConfigRequest();
+
+        ApiConfig apiConfig = new ApiConfig();
+        apiConfig.setUrl(configManager.getProperty("api.url"));
+        apiConfig.setKey(configManager.getProperty("api.key"));
+        apiConfig.setModel_name(configManager.getProperty("api.model_name"));
+        configRequest.setApi(apiConfig);
+
+        DatabaseConfig databaseConfig = new DatabaseConfig();
+        databaseConfig.setType(configManager.getProperty("database.type"));
+        databaseConfig.setHost(configManager.getProperty("database.host"));
+        databaseConfig.setPort(Integer.parseInt(configManager.getProperty("database.port")));
+        databaseConfig.setDatabase(configManager.getProperty("database.database"));
+        databaseConfig.setUsername(configManager.getProperty("database.username"));
+        databaseConfig.setPassword(configManager.getProperty("database.password"));
+        configRequest.setDatabase(databaseConfig);
+        return configRequest;
+    }
+
     @PostMapping("/config")
-    public String config(@RequestBody ConfigRequest request) {
+    public String updateConfig(@RequestBody ConfigRequest request) {
         ConfigManager configManager = new ConfigManager();
 
         // OpenAI 模型和兼容 API 配置
@@ -45,7 +66,6 @@ public class HomeController {
     }
 
     @PostMapping(value = "/sse/normal")
-    @CrossOrigin("*")
     public Flux<ServerSentEvent<String>> sse(@RequestBody AnalysisRequest request) {
         AutoReport autoReport = new AutoReport();
         return autoReport.runTask(request.getPrompt())

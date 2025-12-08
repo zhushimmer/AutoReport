@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { SettingIcon } from "tdesign-icons-vue-next";
 import {
   type SSEChunkData,
@@ -175,7 +175,27 @@ const handleClose = () => {
   settingVisible.value = false;
 };
 
-const config = ref({
+interface ApiConfig {
+  url: string;
+  key: string;
+  model_name: string;
+}
+
+interface DatabaseConfig {
+  type: string;
+  host: '', 
+  port: number | null;
+  database: string;
+  username: string;
+  password: string;
+}
+
+interface Config {
+  api: ApiConfig;
+  database: DatabaseConfig;
+}
+
+const config = ref<Config>({
   api: {
     url: "",
     key: "",
@@ -213,6 +233,17 @@ const saveConfig = async () => {
     alert("提交失败，请重试");
   }
 };
+
+onMounted(async () => {
+  try {
+    const res = await fetch('http://localhost:8186/api/config');
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json();
+    config.value = data;
+  } catch (error) {
+    console.error('Fetch config error:', error);
+  }
+})
 </script>
 
 <template>
