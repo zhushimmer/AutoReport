@@ -10,6 +10,7 @@ import {
   type ChatServiceConfig,
   type TdChatbotApi,
 } from "tdesign-web-components";
+import { MessagePlugin } from 'tdesign-vue-next'
 
 document.documentElement.setAttribute("theme-mode", "dark");
 
@@ -227,11 +228,13 @@ const saveConfig = async () => {
     }
 
     const result = await response.json();
-    console.log("提交成功:", result);
-    saveButtonLoading.value = false;
+    MessagePlugin.success({ content: "保存成功！" })
   } catch (error) {
-    alert("提交失败，请重试");
+    MessagePlugin.error({ content: "保存失败:" + error })
   }
+  
+  saveButtonLoading.value = false;
+  settingVisible.value = false;
 };
 
 onMounted(async () => {

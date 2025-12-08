@@ -62,7 +62,7 @@ public class HomeController {
 
         // 保存到文件
         configManager.saveConfig();
-        return "success";
+        return "{\"status\":\"success\"}";
     }
 
     @PostMapping(value = "/sse/normal")
