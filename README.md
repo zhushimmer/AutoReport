@@ -32,12 +32,13 @@
  - 后端：[SpringBoot](https://github.com/spring-projects/spring-boot)
  - 工具API接口：[FastAPI](https://github.com/fastapi/fastapi)
  - UI框架：[TDesign Vue Next](https://github.com/Tencent/tdesign-vue-next)
+ - 文本可视化：[AntV T8](https://github.com/antvis/t8)
 
 
 ## 安装部署
 
 ### 下载项目
-1. 使用git项项目clone到本地
+1. 使用git将项目clone到本地
 ```bash
 git clone https://github.com/zhushimmer/AutoReport.git
 ```
