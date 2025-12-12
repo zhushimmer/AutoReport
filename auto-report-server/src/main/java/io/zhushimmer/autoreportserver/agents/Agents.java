@@ -4,8 +4,12 @@ import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.memory.Memory;
 import io.agentscope.core.model.OpenAIChatModel;
 import io.agentscope.core.tool.Toolkit;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class Agents {
     private final OpenAIChatModel model;
@@ -23,7 +27,7 @@ public class Agents {
 
         return ReActAgent.builder()
                 .name("任务调度专家")
-                .sysPrompt("你是一个任务调度专家，能进行数据分析任务的调度和评估。你需要将数据分析任务问题拆解三个部分：数据获取、数据分析与报告撰写，并调用对应的专家完成对应的子任务，最终生成数据分析报告。要求：1. 先分析问题，如果不是数据分析任务则直接回复“不支持该任务”，是数据分析任务则将任务拆分并执行；2. 最终报告需要以MarkDown格式输出。")
+                .sysPrompt(getPrompt("Manager"))
                 .model(model)                    // 用于推理的 LLM
                 .toolkit(toolkit)                // 智能体可用的工具
                 .memory(memory)                  // 对话历史
@@ -33,8 +37,15 @@ public class Agents {
     /**
      * 创建一个 Database ReAct 智能体
      */
-    public ReActAgent getDatabaseAgent(ArrayList<Object> tools) {
-        Toolkit toolkit = createToolkit(tools);
+    public ReActAgent getDatabaseAgent(ArrayList<Object> tools, Map<String, Map<String, Object>> presetParams) {
+        Toolkit toolkit = new Toolkit();
+        for (Object tool : tools) {
+            toolkit.registration()
+                    .tool(tool)
+                    .presetParameters(presetParams)
+                    .apply();
+        }
+
         Memory memory = new InMemoryMemory();
 
         return ReActAgent.builder()
@@ -55,7 +66,7 @@ public class Agents {
 
         return ReActAgent.builder()
                 .name("数据分析专家")
-                .sysPrompt("你是一名数据分析专家，精通各种数据分析任务，可以熟练的使用Python进行数据分析。")
+                .sysPrompt(getPrompt("Analysis"))
                 .model(model)                    // 用于推理的 LLM
                 .toolkit(toolkit)                // 智能体可用的工具
                 .memory(memory)                  // 对话历史
@@ -71,7 +82,7 @@ public class Agents {
 
         return ReActAgent.builder()
                 .name("报告专家")
-                .sysPrompt("你是一名专业报告撰写专家，能将数据分析结果整合成结构清晰的报告。")
+                .sysPrompt(getPrompt("Report"))
                 .model(model)                    // 用于推理的 LLM
                 .toolkit(toolkit)                // 智能体可用的工具
                 .memory(memory)                  // 对话历史
@@ -87,5 +98,26 @@ public class Agents {
             toolkit.registerTool(tool);
         }
         return toolkit;
+    }
+
+    private String getPrompt(String agentName) {
+        String filePath = "";
+        String content = "";
+        switch (agentName) {
+            case "Manager":
+                filePath = "prompt/manager_agent.md";
+            case  "Database":
+                filePath = "prompt/database_agent.md";
+            case "Analysis":
+                filePath = "prompt/analysis_agent.md";
+            case "Report":
+                filePath = "prompt/report_agent.md";
+        }
+        try {
+            InputStream inputStream = new ClassPathResource(filePath).getInputStream();
+            content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+        }
+        return content;
     }
 }

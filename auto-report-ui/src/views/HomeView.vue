@@ -1,56 +1,87 @@
 <script setup lang="tsx">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch, type VNodeRef } from "vue";
 import { SettingIcon } from "tdesign-icons-vue-next";
 import {
   type SSEChunkData,
   type AIMessageContent,
   type TdChatMessageConfigItem,
   type ChatRequestParams,
-  type ChatMessagesData,
   type ChatServiceConfig,
   type TdChatbotApi,
+  type UserMessage,
+  type AIMessage,
+  type ChatMessagesData,
+  type TextContent,
+  type ChatBaseContent,
+  type UserMessageContent,
 } from "tdesign-web-components";
-import { MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from "tdesign-vue-next";
+import { Text, type NarrativeTextSpec } from "@antv/t8";
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 
+export type T8Content = ChatBaseContent<"t8", Object>;
+declare global {
+  interface AIContentTypeOverrides {
+    t8: T8Content;
+  }
+}
+
+const t8Items = ref<(() => void)[]>([])
 document.documentElement.setAttribute("theme-mode", "dark");
 
+// 流式数据加载中
+const isStreamLoad = ref(false);
+
+const query = ref("");
+const loading = ref(false);
 const settingVisible = ref(false);
 
-// 默认初始化消息
-const mockData: ChatMessagesData[] = [
+const elements = ref<Map<string, VNodeRef>>(new Map<string, VNodeRef>());
+const addElement = (id: string, el: Element | any, data: string) => {
+  const item = chatList.value.find(m => m.id === id);
+  if (el && item) {
+    if (item.content?.[0]?.type == "t8" && item.status == 'complete') {
+      const text = new Text(el!);
+      text.theme("dark");
+      text.schema(JSON.parse(data));
+      text.render();
+    }
+  }
+
+}
+
+// 消息
+const chatList = ref<ChatMessagesData[]>([
   {
     id: "0",
     role: "assistant",
-    content: JSON.parse(
-      JSON.stringify([
-        {
-          type: "text",
-          status: "complete",
-          data: "欢迎使用AutoReport智能助手，你可以这样问我：",
-        },
-        {
-          type: "suggestion",
-          status: "complete",
-          data: [
-            {
-              title: "帮我分析最近三天的销售额变化",
-              prompt: "帮我分析最近三天的销售额变化？",
-            },
-            {
-              title: "帮我分析哪个产品销量最高",
-              prompt: "帮我分析哪个产品销量最高？",
-            },
-          ],
-        },
-      ])
-    ),
-  },
-];
+    datetime: new Date().toLocaleString(),
+    comment: "",
+    content: [
+      {
+        type: "text",
+        status: "complete",
+        data: "欢迎使用AutoReport智能助手，你可以这样问我：",
+      },
+      {
+        type: "suggestion",
+        status: "complete",
+        data: [
+          {
+            title: "所有商品的总价格是多少",
+            prompt: "所有商品的总价格是多少？",
+          },
+        ],
+      },
+    ],
+  }
+]);
 
 const chatRef = ref<TdChatbotApi | null>(null);
 const activeR1 = ref(false);
 const activeSearch = ref(false);
 const reqParamsRef = ref({ think: true, search: false });
+
 // 消息属性配置
 const messageProps = (msg: ChatMessagesData): TdChatMessageConfigItem => {
   const { role, content } = msg;
@@ -84,8 +115,7 @@ const messageProps = (msg: ChatMessagesData): TdChatMessageConfigItem => {
           console.log("点击搜索条目", content);
         },
         suggestion: ({ content }) => {
-          console.log("点击建议问题", content);
-          chatRef.value?.addPrompt(content.prompt);
+          query.value = content.prompt;
         },
       },
       chatContentProps: {
@@ -100,61 +130,6 @@ const messageProps = (msg: ChatMessagesData): TdChatMessageConfigItem => {
   return {};
 };
 
-// 聊天服务配置
-const chatServiceConfig = ref<ChatServiceConfig>({
-  // endpoint: `https://1257786608-9i9j1kpa67.ap-guangzhou.tencentscf.com/sse/normal`,
-  endpoint: `http://localhost:8186/api/sse/normal`,
-  stream: true,
-  retryInterval: 3,
-  maxRetries: 3,
-  onRequest: (params: ChatRequestParams) => {
-    const { prompt } = params;
-    return {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      body: JSON.stringify({
-        uid: "auto-report",
-        prompt,
-        ...reqParamsRef.value,
-      }),
-    };
-  },
-  onMessage: (
-    chunk: SSEChunkData,
-    message?: ChatMessagesData
-  ): AIMessageContent => {
-    const { type, ...rest } = chunk.data as any;
-    switch (type) {
-      case "think":
-        return {
-          type: "thinking",
-          status: /耗时/.test(rest?.title) ? "complete" : "streaming",
-          data: {
-            title: rest.title || "深度思考中",
-            text: rest.content || "", // 深度克隆
-          },
-        };
-      case "text":
-        return {
-          type: "markdown",
-          data: rest?.msg || "",
-        };
-      default:
-        return { type: "text", data: "" };
-    }
-  },
-  onComplete: (isAborted: boolean, params?: RequestInit, result?: any) => {
-    // console.log("onComplete", isAborted, params);
-    return null;
-  },
-  onAbort: async () => {},
-  onError: (err: Error | Response) => {
-    // console.error("Chatservice Error:", err);
-  },
-});
-
 // 监听状态变化
 watch(
   [activeR1, activeSearch],
@@ -167,13 +142,9 @@ watch(
   { immediate: true }
 );
 
-// 发送者属性
-const senderProps = {
-  placeholder: "请提供数据分析任务～ Enter 发送，Shift+Enter 换行",
-};
-
 const handleClose = () => {
   settingVisible.value = false;
+  loading.value = false;
 };
 
 interface ApiConfig {
@@ -184,7 +155,7 @@ interface ApiConfig {
 
 interface DatabaseConfig {
   type: string;
-  host: '', 
+  host: "";
   port: number | null;
   database: string;
   username: string;
@@ -211,14 +182,16 @@ const config = ref<Config>({
     password: "",
   },
 });
+
 const saveButtonLoading = ref(false);
+
 const saveConfig = async () => {
   saveButtonLoading.value = true;
   try {
     const response = await fetch("http://localhost:8186/api/config", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json;charset=UTF-8",
       },
       body: JSON.stringify(config.value),
     });
@@ -228,25 +201,197 @@ const saveConfig = async () => {
     }
 
     const result = await response.json();
-    MessagePlugin.success({ content: "保存成功！" })
+    MessagePlugin.success({ content: "保存成功！" });
   } catch (error) {
-    MessagePlugin.error({ content: "保存失败:" + error })
+    MessagePlugin.error({ content: "保存失败:" + error });
   }
-  
+
   saveButtonLoading.value = false;
   settingVisible.value = false;
 };
 
 onMounted(async () => {
   try {
-    const res = await fetch('http://localhost:8186/api/config');
-    if (!res.ok) throw new Error('Network response was not ok');
+    const res = await fetch("http://localhost:8186/api/config");
+    if (!res.ok) throw new Error("Network response was not ok");
     const data = await res.json();
     config.value = data;
   } catch (error) {
-    console.error('Fetch config error:', error);
+    console.error("Fetch config error:", error);
   }
-})
+});
+
+const inputEnter = () => {
+  if (isStreamLoad.value || !query.value) {
+    return;
+  }
+
+  const userMsg: UserMessage = {
+    id: crypto.randomUUID(),
+    role: 'user',
+    status: 'complete',
+    datetime: new Date().toLocaleString(),
+    content: [
+      {
+        type: 'text',
+        data: query.value,
+      },
+    ],
+  };
+  chatList.value.push(userMsg);
+  handleData(query.value);
+  query.value = "";
+  loading.value = false;
+  isStreamLoad.value = false;
+};
+
+const handleData = async (query: string) => {
+  loading.value = true;
+  isStreamLoad.value = true;
+  const uid = crypto.randomUUID();
+  let msgData = "";
+  let index = 0;
+  let isT8Msg = false;
+
+  const aiMsg: ChatMessagesData = {
+    id: uid,
+    role: "assistant",
+    datetime: new Date().toLocaleString(),
+    comment: "",
+    status: "pending",
+    content: [],
+  }
+  chatList.value.push(aiMsg)
+
+  // 建立连接
+  fetchEventSource('http://localhost:8186/api/sse/normal', {
+    method: 'POST',
+    headers: {
+      'Accept': 'text/event-stream',
+      "Content-Type": "application/json;charset=UTF-8",
+    },
+    body: JSON.stringify({
+      "uid": uid,
+      "prompt": query,
+      "think": false,
+      "search": false
+    }),
+    onmessage(event) {
+      if (event.event == 'error') {
+        const item = chatList.value.find(m => m.id === uid);
+        if (item) {
+          item.status = "error";
+          item.content = [{
+            type: "text",
+            status: "error",
+            data: event.data,
+          }]
+        }
+        return
+      }
+
+      if (event.event == 'message') {
+        // 处理接收到的消息
+        const jsonData = JSON.parse(event.data);
+        const msg: string = jsonData.msg;
+
+        // if (index == 0 && msg.trimStart().startsWith("{")) {
+        //   isT8Msg = true;
+        //   const item = chatList.value.find(m => m.id === uid);
+        //   if (item) {
+        //     item.status = "streaming";
+        //     item.content = [{
+        //       type: "t8",
+        //       status: "streaming",
+        //       data: "",
+        //     }]
+        //   }
+        // }
+
+        // if (isT8Msg) {}
+        // const item = chatList.value.find(m => m.id === uid);
+        // if (item && item.content && item.content[0]) {
+        //   item.content[0].data += msg;
+        // }
+
+        index += 1
+        msgData += msg;
+      }
+    },
+    onerror(error) {
+      console.error('Error:', error);
+      const item = chatList.value.find(m => m.id === uid);
+      if (item) {
+        item.status = "error";
+        item.content = [{
+          type: "text",
+          status: "error",
+          data: "Error: " + error,
+        }]
+      }
+    },
+    onclose() {
+      console.log('Connection closed!');
+      if (msgData.length == 0) {
+        return
+      }
+
+      let type: "text" | "markdown" | "thinking" | "image" | "search" | "suggestion" | "t8";
+      if (msgData.startsWith("{")) {
+        type = "t8"
+      } else {
+        type = "markdown"
+      }
+
+      const item = chatList.value.find(m => m.id === uid);
+      if (item) {
+        item.status = "complete";
+        item.content = [{
+          type: type,
+          status: "complete",
+          data: msgData,
+        }]
+      }
+
+    }
+  });
+}
+
+// Utility: delay for a given ms
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 清空消息
+const clearConfirm = function () {
+  for (const fn of t8Items.value) {
+    fn();
+  }
+  chatList.value.length = 0;
+};
+
+const handleChatScroll = (e: any) => {
+  console.log('handleChatScroll', e);
+};
+
+const handleOperation = (type: string, msg: AIMessage, index: number) => {
+  // 对当前消息设置状态
+  if (type === 'good' || type === 'bad') {
+    msg.comment = msg.comment === type ? '' : type;
+  }
+};
+
+const getActionbar = (msg: AIMessage) => {
+  // const actionBar = ['good', 'bad', 'replay', 'copy'];
+  const actionBar = ['good', 'bad', 'copy'];
+  if (msg.content && msg.content[0]?.type == "t8") {
+    actionBar.pop()
+  }
+  return actionBar
+}
+
+
+
 </script>
 
 <template>
@@ -257,34 +402,47 @@ onMounted(async () => {
         <span>AutoReport</span>
       </div>
       <div class="home-main-right">
-        <t-button
-          variant="dashed"
-          shape="round"
-          size="large"
-          @click="settingVisible = !settingVisible"
-        >
-          <template #icon><SettingIcon /></template>
+        <t-button variant="dashed" shape="round" size="large" @click="settingVisible = !settingVisible">
+          <template #icon>
+            <SettingIcon />
+          </template>
           设置
         </t-button>
       </div>
     </div>
     <div class="home-main">
-      <t-chatbot
-        ref="chatRef"
-        :default-messages="mockData"
-        :message-props="messageProps"
-        :sender-props="senderProps"
-        :chat-service-config="chatServiceConfig"
-      >
-        <template #sender-footer-prefix></template>
-      </t-chatbot>
+      <div class="home-main-message">
+        <t-space direction="vertical" style="width: 100%;">
+          <t-chat-list :clear-history="chatList.length > 4 && !isStreamLoad" @clear="clearConfirm"
+            @scroll="handleChatScroll">
+            <template v-for="(msg, index) in chatList" :key="index">
+              <t-chat-message v-bind="messageProps(msg)" :role="msg.role" :content="msg.content"
+                :datetime="msg.datetime" animation="gradient" :status="msg.status">
+                <template v-if="msg.content && msg.content[0]?.type == 't8'" #content>
+                  <template v-for="(contentItem, contentIndex) in msg.content" :key="contentIndex">
+                    <div :ref="(el) => addElement(msg.id, el, contentItem.data as string)"></div>
+                  </template>
+                </template>
+                <template v-if="msg.content && msg.role == 'assistant'" #actionbar>
+                  <t-chat-actionbar :comment="msg.comment" :content="msg.content[0]?.data"
+                    :action-bar="getActionbar(msg)" @actions="(type: string) => handleOperation(type, msg, index)" />
+                </template>
+              </t-chat-message>
+            </template>
+          </t-chat-list>
+        </t-space>
+      </div>
     </div>
-    <t-drawer
-      destroyOnClose
-      v-model:visible="settingVisible"
-      size="medium"
-      :on-confirm="handleClose"
-    >
+    <div class="home-footer">
+      <t-chat-sender v-model="query" :loading="isStreamLoad" :stop-disabled="loading" :textarea-props="{
+        placeholder: '请提供数据分析任务～ Enter 发送，Shift+Enter 换行',
+      }" @send="inputEnter">
+        <template #suffix="{ renderPresets }">
+          <component :is="renderPresets([])" />
+        </template>
+      </t-chat-sender>
+    </div>
+    <t-drawer destroyOnClose v-model:visible="settingVisible" size="medium" :on-confirm="handleClose">
       <template #header>设置</template>
       <t-space direction="vertical" size="medium" style="width: 100%">
         <h1 class="text-lg text-white">模型API</h1>
@@ -301,11 +459,7 @@ onMounted(async () => {
           <t-input v-model="config.api.model_name" />
         </t-space>
       </t-space>
-      <t-space
-        direction="vertical"
-        size="medium"
-        style="width: 100%; margin-top: 40px"
-      >
+      <t-space direction="vertical" size="medium" style="width: 100%; margin-top: 40px">
         <h1 class="text-lg text-white">数据库</h1>
         <t-space direction="vertical" :size="0" style="width: 100%">
           <span>Type</span>
@@ -320,12 +474,7 @@ onMounted(async () => {
         </t-space>
         <t-space direction="vertical" :size="0" style="width: 100%">
           <span>Port</span>
-          <t-input-number
-            v-model="config.database.port"
-            theme="normal"
-            :max="65535"
-            :min="1"
-          ></t-input-number>
+          <t-input-number v-model="config.database.port" theme="normal" :max="65535" :min="1"></t-input-number>
         </t-space>
         <t-space direction="vertical" :size="0" style="width: 100%">
           <span>Database</span>
@@ -341,9 +490,7 @@ onMounted(async () => {
         </t-space>
       </t-space>
       <template #footer>
-        <t-button @click="saveConfig" :loading="saveButtonLoading"
-          >保存</t-button
-        >
+        <t-button @click="saveConfig" :loading="saveButtonLoading">保存</t-button>
         <t-button variant="outline" @click="settingVisible = false">
           取消
         </t-button>
@@ -388,10 +535,35 @@ onMounted(async () => {
 
 .home-main {
   box-sizing: border-box;
+  width: 100%;
+  // height: calc(100vh - 60px);
+  flex: 1;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  /* IE/Edge 旧版 */
+  scrollbar-width: none;
+  /* Firefox */
+  display: flex;
+  padding: 20px 0;
+  align-items: center;
+  flex-direction: column;
+}
+
+.main::-webkit-scrollbar {
+  display: none;
+}
+
+.home-main-message {
   width: 50%;
-  height: calc(100vh - 60px);
+  min-width: 500px;
+}
+
+.home-footer {
+  box-sizing: border-box;
+  width: 50%;
+  min-width: 500px;
   margin: auto;
-  padding: 30px 0;
+  padding-bottom: 30px;
 }
 
 t-chatbot {

@@ -1,0 +1,7 @@
+pandas
+numpy
+SQLAlchemy
+mysqlclient
+psycopg2
+fastapi[standard]
+uvicorn

@@ -27,12 +27,42 @@
 5. 多智能体协作（Multi-Agent）
 
 
+### 开发框架
+ - Agent框架：[AgentScope Java](https://github.com/agentscope-ai/agentscope-java)
+ - 后端：[SpringBoot](https://github.com/spring-projects/spring-boot)
+ - 工具API接口：[FastAPI](https://github.com/fastapi/fastapi)
+ - UI框架：[TDesign Vue Next](https://github.com/Tencent/tdesign-vue-next)
+
+
 ## 安装部署
 
 ### 下载项目
 1. 使用git项项目clone到本地
 ```bash
 git clone https://github.com/zhushimmer/AutoReport.git
+```
+
+### 部署工具接口
+
+1. 进入tools目录
+```bash
+cd auto-report-tools
+```
+
+2. 创建并激活Python虚拟环境
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+3. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+4. 启动API服务
+```bash
+fastapi dev main.py
 ```
 
 
@@ -69,6 +99,9 @@ pnpm install
 ```bash
 pnpm dev
 ```
+
+## 示例
+![example](./assets/example.png)
 
 
 ## 许可协议
